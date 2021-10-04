@@ -1,12 +1,13 @@
 # Tool for Coding Tasks Specific to Civil Engineering 
 
-Tools to make - my or may not get around to doing all of these.
+Tools to make - may or may not get around to doing all of these.
 
 General CE
 - Factor of Safety Checks
 - LRFD Checks
-- Load Combinations
+- Load Combinations (COMPLETED)
 - Material Properties (steel, aluminum, concrete, plastic...)
+- Simple 1d curve and multi 1d curve interpolation from charts, tables
 
 Mechanics
 - Statics
