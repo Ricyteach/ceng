@@ -13,11 +13,13 @@ and this project strives to adhere to
 
   * none
 
+### [0.2] - 2021-10-05
+
 #### Changed
 
-  * improved load combination API
+  * improved load combination API, added some documentation
 
-### [0.1] - 2021-10-04
+ ### [0.1] - 2021-10-04
 
 #### Features
 
