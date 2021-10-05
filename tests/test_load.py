@@ -2,6 +2,7 @@ from inspect import signature
 from ceng.common import flatten
 
 import numpy as np
+import numpy.testing as npt
 import pytest
 from ceng.load import load_combination, Factored
 
@@ -129,7 +130,9 @@ def test_combo_max_result(load_combo_input, load_combination_func, load_combo_re
 
 def test_load_combo_as_method(D, L):
     class C:
-        @load_combination(D & L)
+        @load_combination(1.4*D & 1.2*L)
         def m(self, D, L): ...
 
-    assert np.max(C().m(1, 1)) == 2
+    result = np.max(C().m(1, 1))
+
+    npt.assert_almost_equal(result, np.array(2.6))
