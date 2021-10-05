@@ -18,6 +18,7 @@ dynamic = ["version", "description"]
 dependencies = [
     "numpy >=1.21",
     "scipy >=1.7",
+    "wrapt >= 1.13",
 ]
 
 [project.urls]

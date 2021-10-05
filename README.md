@@ -1,6 +1,6 @@
 # Tool for Coding Tasks Specific to Civil Engineering 
 
-Tools to make - may or may not get around to doing all of these.
+Tools to make - may or may not get around to doing all (many?) of these.
 
 General CE
 - Factor of Safety Checks
@@ -34,16 +34,15 @@ AASHTO equations (multiple versions)
 - Live loading
 - Seismic loading
 
-Other Code equations
+Other Codes
 - PV1
 - PV2
-
-NCSPA Data
-NDS Equations
-ADM Equations
-ACI Equations
-AISC Equations
-AISI Equations
+- NCSPA
+- NDS
+- ADM
+- ACI
+- AISC
+- AISI
 
 Structural Design
 - Piles

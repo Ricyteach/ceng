@@ -3,6 +3,7 @@ from functools import wraps, partial
 from inspect import signature
 from typing import TypeVar, Generic
 import numpy as np
+import wrapt
 
 T = TypeVar('T')
 
@@ -106,35 +107,23 @@ def _get_equations_matrix(load_factor_groups):
     return _row_by_row_concatenation_of_array_seq(arr_seq)
 
 
-def _combine_loads_function_factory(load_combination_obj, func):
+def load_combination(load_expr):
+
+    if isinstance(load_expr, Factored):
+        load_combination_obj = Combination((GroupAnd((load_expr,)),))
+    elif isinstance(load_expr, GroupAnd):
+        load_combination_obj = Combination((load_expr,))
+    else:
+        load_combination_obj = load_expr
 
     mat = _get_equations_matrix(load_combination_obj)
-    sig = signature(func)
 
-    @wraps(func)
-    def combine_the_loads(*args, **kwargs):
-        bound = sig.bind(*args, **kwargs)
+    @wrapt.decorator
+    def combine_the_loads_wrapper(wrapped, instance, args, kwargs):
+        bound = signature(wrapped).bind(*args, **kwargs)
         # mat is A, input is B. do A X B.T, and transpose result
         return (mat @ np.array(list(bound.arguments.values())).T).T
-    return combine_the_loads
-
-
-def load_combination(*dec_args):
-    *dec_args, func = dec_args if callable(dec_args[-1]) else (*dec_args, None)
-
-    if func is None:
-        return partial(load_combination, *dec_args)
-    else:
-        obj, = dec_args
-
-    if isinstance(obj, Factored):
-        obj = Combination((GroupAnd((obj,)),))
-    elif isinstance(obj, GroupAnd):
-        obj = Combination((obj,))
-
-    combine_the_loads = _combine_loads_function_factory(obj, func)
-
-    return wraps(func)(combine_the_loads)
+    return combine_the_loads_wrapper
 
 
 def _row_by_row_concatenation_of_array_seq(arr_seq):

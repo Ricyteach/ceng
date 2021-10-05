@@ -125,3 +125,11 @@ def test_combo_max_result(load_combo_input, load_combination_func, load_combo_re
     s = signature(load_combination_func)
     result = load_combination_func(**{k:v for k,v in load_combo_input.items() if k in s.parameters})
     assert np.max(result) == load_combo_result_expected
+
+
+def test_load_combo_as_method(D, L):
+    class C:
+        @load_combination(D & L)
+        def m(self, D, L): ...
+
+    assert np.max(C().m(1, 1)) == 2
