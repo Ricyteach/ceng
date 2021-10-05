@@ -1,3 +1,17 @@
+"""Tools for working with combinations of loads.
+
+>>> from ceng.load import Factored, load_combination
+>>> D, L, S, Lr, W = (Factored(s) for s in "D L S Lr W".split())
+>>> load_expr = 1.6*D & 1.2*L & 0.5*(S | Lr | W)
+>>> @load_combination(load_expr)
+... def my_combo(D, L, S, Lr, W): ...
+...
+>>> my_combo(1, 2, 3, 4, 5)
+array([5.5, 6. , 6.5])
+
+The result represents the 3 different answers from this load combination.
+"""
+
 import dataclasses
 from functools import wraps, partial
 from inspect import signature, ismethod
@@ -10,6 +24,17 @@ T = TypeVar('T')
 
 @dataclasses.dataclass
 class Factored(Generic[T]):
+    """Represents a load type with a specified load factor.
+
+    To be used in composing load expressions. E.g.:
+
+    1.6*D & 1.2*L & 0.5*(S | Lr | W)
+
+    Which means:
+
+    1.6 dead load AND 1.2 live load AND 0.5 of either: snow load, live roof load, OR wind load
+    """
+
     load_type: T
     factor: float = 1.0
 
@@ -95,25 +120,50 @@ class GroupAnd(Group):
 
 
 class Combination(tuple[Group]):
+    """A final expression of the combination of multiple loads."""
 
     def __and__(self, other):
         if isinstance(other, (GroupAnd, GroupOr)):
             return type(self)((*self, other))
         return  NotImplemented
 
+    @property
+    def matrix(self):
+        """A numpy array representing the load combination.
 
-def _get_equations_matrix(load_factor_groups):
-    arr_seq = [group.matrix for group in load_factor_groups]
-    return _row_by_row_concatenation_of_array_seq(arr_seq)
+        Example:
+
+        >>> from ceng.load import Factored, load_combination
+        >>> D, L, S, Lr, W = (Factored(s) for s in "D L S Lr W".split())
+        >>> combo = 1.6*D & 1.2*L & 0.5*(S | Lr | W)
+        >>> combo.matrix
+        array([[1.6, 1.2, 0.5, 0. , 0. ],
+               [1.6, 1.2, 0. , 0.5, 0. ],
+               [1.6, 1.2, 0. , 0. , 0.5]])
+        """
+        arr_seq = [group.matrix for group in self]
+        return _row_by_row_concatenation_of_array_seq(arr_seq)
 
 
-def load_combination(*dec_args):
-    *dec_args, func = dec_args if any(callable(v) for v in dec_args[-1:]) else (*dec_args, None)
+def load_combination(load_expr, func=None):
+    """Decorator to apply to a load combination function. Automatically implements load combination.
+
+    Example:
+    >>> from ceng.load import Factored, load_combination
+    >>> D, L, S, Lr, W = (Factored(s) for s in "D L S Lr W".split())
+    >>> @load_combination(1.6*D & 1.2*L & 0.5*(S | Lr | W))
+    ... def combo(D, L, S, Lr, W):
+    ...    pass
+    ...
+
+    Produces:
+
+    >>> combo(1, 2, 3, 4, 5)
+    array([5.5, 6. , 6.5])
+    """
 
     if func is None:
-        return partial(load_combination, *dec_args)
-    else:
-        load_expr, = dec_args
+        return partial(load_combination, load_expr)
 
     if isinstance(load_expr, Factored):
         load_combination_obj = Combination((GroupAnd((load_expr,)),))
@@ -122,7 +172,7 @@ def load_combination(*dec_args):
     else:
         load_combination_obj = load_expr
 
-    mat = _get_equations_matrix(load_combination_obj)
+    mat = load_combination_obj.matrix
     sig = signature(func)
 
     @wrapt.decorator
