@@ -4,38 +4,7 @@ from ceng.common import flatten
 import numpy as np
 import numpy.testing as npt
 import pytest
-from ceng.load import load_combination, Factored
-
-
-@pytest.fixture
-def D():
-    return Factored("D")
-
-
-@pytest.fixture
-def L():
-    return Factored("L")
-
-
-@pytest.fixture
-def Lr():
-    return Factored("Lr")
-
-
-@pytest.fixture
-def S():
-    return Factored("S")
-
-
-@pytest.fixture
-def R():
-    return Factored("R")
-
-
-@pytest.fixture
-def W():
-    return Factored("W")
-
+from ceng.load import Combination
 
 combo_strs = [
     "(1.4 * D)",
@@ -59,17 +28,13 @@ def combo_list_idx(request):
 
 
 @pytest.fixture
-def combo(combo_list_idx):
+def combo_str(combo_list_idx):
     return combo_strs[combo_list_idx]
 
 
-def test_factored_objects(combo):
-    assert combo
-
-
 @pytest.fixture
-def combo_obj(combo, D, L, Lr, S, R, W):
-    return eval(combo)
+def combo_obj(combo_str):
+    return Combination(combo_str)
 
 
 def test_combo_obj(combo_obj):
@@ -77,19 +42,15 @@ def test_combo_obj(combo_obj):
 
 
 @pytest.fixture
-def load_combination_function_factory(combo_obj):
-    return load_combination(combo_obj)
-
-
-def test_load_combination_function_creation(load_combination_function_factory):
-    assert load_combination_function_factory
+def load_combination_func(combo_obj):
+    args = combo_obj._identifiers
+    func = eval(f"lambda {', '.join(a.load_type for a in args)}: None")
+    return combo_obj.function(func)
 
 
 @pytest.fixture
-def load_combination_func(load_combination_function_factory, combo_obj):
-    args = flatten(combo_obj)
-    func = eval(f"lambda {', '.join(a.load_type for a in args)}: None")
-    return load_combination_function_factory(func)
+def test_load_combination_func(load_combination_func):
+    assert load_combination_func
 
 
 combo_max_func_expected = [
@@ -130,7 +91,7 @@ def test_combo_max_result(load_combo_input, load_combination_func, load_combo_re
 
 def test_load_combo_as_method(D, L):
     class C:
-        @load_combination(1.4*D & 1.2*L)
+        @Combination("1.4*D & 1.2*L").method
         def m(self, D, L): ...
 
     result = np.max(C().m(1, 1))
