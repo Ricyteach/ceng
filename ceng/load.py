@@ -1,9 +1,7 @@
 """Tools for working with combinations of loads.
 
->>> from ceng.load import Factored, load_combination
->>> D, L, S, Lr, W = (Factored(s) for s in "D L S Lr W".split())
->>> load_expr = 1.6*D & 1.2*L & 0.5*(S | Lr | W)
->>> @load_combination(load_expr)
+>>> from ceng.load Combination
+>>> @Combination("1.6*D & 1.2*L & 0.5*(S | Lr | W)").function
 ... def my_combo(D, L, S, Lr, W): ...
 ...
 >>> my_combo(1, 2, 3, 4, 5)
@@ -12,18 +10,57 @@ array([5.5, 6. , 6.5])
 The result represents the 3 different answers from this load combination.
 """
 
+import re
+import ast
 import dataclasses
-from functools import wraps, partial
-from inspect import signature, ismethod
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Callable
 import numpy as np
+import numpy.typing as npt
+import numba as nb
 import wrapt
 
 T = TypeVar('T')
 
+_valid_operators = list("&|()")
+_load_combination_re = re.compile("|".join("\\"+op for op in _valid_operators))
+_multiply_re = re.compile(r"\*")
+
+
+class LoadCombinationExpressionError(Exception):
+    pass
+
+
+def _get_identifiers(expr):
+    """Parse a load combination string. Return a tuple of valid identifiers used in the string."""
+
+    expr_lst = [s.strip() for s in _load_combination_re.split(expr) if s.strip()]
+    identifiers = []
+
+    for sub_expr in expr_lst:
+        *lhs, rhs = (s.strip() for s in _multiply_re.split(sub_expr))
+        # None is the case when the RHS is a parenthesized expression
+        maybe_identifier = rhs if rhs else None
+        for maybe_number in lhs:
+            if not maybe_number.replace('.', '1').isdecimal():
+                # LHS of multiplication operation has to be a number
+                raise LoadCombinationExpressionError(expr, sub_expr)
+
+        if maybe_identifier is not None:
+            if not maybe_identifier.isidentifier():
+                raise LoadCombinationExpressionError(expr, sub_expr)
+            else:
+                identifiers.append(maybe_identifier)
+
+    try:
+        ast.parse(expr)
+    except Exception as e:
+        raise LoadCombinationExpressionError(expr) from e
+
+    return tuple(identifiers)
+
 
 @dataclasses.dataclass
-class Factored(Generic[T]):
+class _Factored(Generic[T]):
     """Represents a load type with a specified load factor.
 
     To be used in composing load expressions. E.g.:
@@ -42,42 +79,42 @@ class Factored(Generic[T]):
         return type(self)(self.load_type, self.factor * other)
 
     def __or__(self, other):
-        if isinstance(other, Factored):
-            return GroupOr((self, other))
+        if isinstance(other, _Factored):
+            return _GroupOr((self, other))
         return NotImplemented
 
     def __ror__(self, other):
         return NotImplemented
 
     def __and__(self, other):
-        if isinstance(other, Factored):
-            return GroupAnd((self, other))
+        if isinstance(other, _Factored):
+            return _GroupAnd((self, other))
         return NotImplemented
 
     def __rand__(self, other):
         return NotImplemented
 
 
-class Group(tuple[Factored]):
-    """Factored objects that have been combined"""
+class _Group(tuple[_Factored]):
+    """_Factored objects that have been combined"""
 
     @property
     def matrix(self):
         factor_arr = np.array([factored.factor for factored in self])
-        if isinstance(self, GroupOr):
+        if isinstance(self, _GroupOr):
             return np.diag(factor_arr)
-        elif isinstance(self, GroupAnd):
+        elif isinstance(self, _GroupAnd):
             return factor_arr.reshape((1, factor_arr.shape[0]))
 
 
-class GroupOr(Group):
-    """FactoredLoadType objects that have been `__or__`ed together
+class _GroupOr(_Group):
+    """_Factored objects that have been `__or__`ed together
 
         factored_load_type_a | factored_load_type_b
     """
 
     def __or__(self, other):
-        if isinstance(other, Factored):
+        if isinstance(other, _Factored):
             return type(self)((*self, other))
         return NotImplemented
 
@@ -88,18 +125,18 @@ class GroupOr(Group):
         return NotImplemented
 
     def __rand__(self, other):
-        if isinstance(other, Factored):
-            other = GroupAnd((other,))
-        if isinstance(other, (GroupOr, GroupAnd)):
-            return Combination((other, self))
+        if isinstance(other, _Factored):
+            other = _GroupAnd((other,))
+        if isinstance(other, (_GroupOr, _GroupAnd)):
+            return tuple((other, self))
         return NotImplemented
 
     def __rmul__(self, other):
         return type(self)(type(v)(v.load_type, other*v.factor) for v in self)
 
 
-class GroupAnd(Group):
-    """FactoredLoadType objects that have been `__and__`ed together
+class _GroupAnd(_Group):
+    """_Factored objects that have been `__and__`ed together
 
         factored_load_type_a & factored_load_type_b
     """
@@ -111,7 +148,7 @@ class GroupAnd(Group):
         return  NotImplemented
 
     def __and__(self, other):
-        if isinstance(other, Factored):
+        if isinstance(other, _Factored):
             return type(self)((*self, other))
         return NotImplemented
 
@@ -119,69 +156,115 @@ class GroupAnd(Group):
         return  NotImplemented
 
 
-class Combination(tuple[Group]):
-    """A final expression of the combination of multiple loads."""
+@dataclasses.dataclass(frozen=True)
+class Combination:
+    """A callable expression of the combination of multiple loads."""
+
+    expr: str
+
+    _identifiers: list[str] = dataclasses.field(init=False, repr=False)
+    _matrix: npt.ArrayLike = dataclasses.field(init=False, repr=False, compare=False)
+    _call_handler: Callable[..., npt.ArrayLike] = dataclasses.field(init=False, repr=False, compare=False)
+
+    def __post_init__(self):
+        object.__setattr__(self, "_identifiers", _get_identifiers(self.expr))
+        self._init_matrix()
+        self._init_call_handler()
+
+    def __str__(self):
+        return self.expr
 
     def __and__(self, other):
-        if isinstance(other, (GroupAnd, GroupOr)):
+        if isinstance(other, (_GroupAnd, _GroupOr)):
             return type(self)((*self, other))
         return  NotImplemented
 
-    @property
-    def matrix(self):
-        """A numpy array representing the load combination.
+    def _init_matrix(self):
+        """Initialize a numpy array representing the load combination."""
+
+        ns = {k:_Factored(k) for k in self._identifiers}
+        try:
+            expr_eval = eval(self.expr, ns)
+        except Exception as e:
+            raise LoadCombinationExpressionError(self.expr) from e
+
+        if isinstance(expr_eval, _Factored):
+            group_tup = (_GroupAnd((expr_eval,)),)
+        elif isinstance(expr_eval, _GroupAnd):
+            group_tup = (expr_eval,)
+        elif isinstance(expr_eval, tuple):
+            group_tup = expr_eval
+        else:
+            raise LoadCombinationExpressionError(f"{self.expr!r} evaluated to type {type(expr_eval).__qualname__}")
+
+        arr_seq = [group.matrix for group in group_tup]
+        object.__setattr__(self, "_matrix", _row_by_row_concatenation_of_array_seq(arr_seq))
+
+    def _init_call_handler(self):
+
+        # TODO: create handler using AST
+        lambda_src_template = 'lambda ' f'{", ".join(self._identifiers)}' ': {}'
+
+        vectorized_row_funcs = tuple(
+            nb.vectorize(eval(
+                lambda_src_template.format(" + ".join(f"{f}*{i}" for f, i in zip(factors, self._identifiers)))
+            )) for factors in self._matrix)
+
+        # TODO: jit each of the row funcs so kwd args are supported
+
+        def _call_handler(*args, **kwargs):
+            return np.array([f(*args, **kwargs) for f in vectorized_row_funcs]).T
+
+        # prime the function for the float type (this seems slightly faster than providing dtype info)
+        _call_handler(*(1. for _ in range(len(self._identifiers))))
+
+        object.__setattr__(self, "_call_handler", _call_handler)
+
+    def function(self, func):
+        """Decorator to apply to a load combination function. Automatically implements load combination.
 
         Example:
+        >>> @Combination("1.6*D & 1.2*L & 0.5*(S | Lr | W)").function
+        ... def combo(D, L, S, Lr, W):
+        ...    pass
+        ...
 
-        >>> from ceng.load import Factored, load_combination
-        >>> D, L, S, Lr, W = (Factored(s) for s in "D L S Lr W".split())
-        >>> combo = 1.6*D & 1.2*L & 0.5*(S | Lr | W)
-        >>> combo.matrix
-        array([[1.6, 1.2, 0.5, 0. , 0. ],
-               [1.6, 1.2, 0. , 0.5, 0. ],
-               [1.6, 1.2, 0. , 0. , 0.5]])
+        Produces:
+
+        >>> combo(1, 2, 3, 4, 5)
+        array([5.5, 6. , 6.5])
         """
-        arr_seq = [group.matrix for group in self]
-        return _row_by_row_concatenation_of_array_seq(arr_seq)
 
+        @wrapt.decorator
+        def combine_the_loads_wrapper(wrapped, instance, args, kwargs):
+            return self(*args, **kwargs)
 
-def load_combination(load_expr, func=None):
-    """Decorator to apply to a load combination function. Automatically implements load combination.
+        return combine_the_loads_wrapper(func)
 
-    Example:
-    >>> from ceng.load import Factored, load_combination
-    >>> D, L, S, Lr, W = (Factored(s) for s in "D L S Lr W".split())
-    >>> @load_combination(1.6*D & 1.2*L & 0.5*(S | Lr | W))
-    ... def combo(D, L, S, Lr, W):
-    ...    pass
-    ...
+    def method(self, func):
+        """Decorator to apply to a load combination method. Automatically implements load combination.
 
-    Produces:
+        Example:
+        >>> class C:
+        ...     @Combination("1.6*D & 1.2*L & 0.5*(S | Lr | W)").method
+        ...     def combo(self, D, L, S, Lr, W):
+        ...         pass
+        ...
 
-    >>> combo(1, 2, 3, 4, 5)
-    array([5.5, 6. , 6.5])
-    """
+        Produces:
 
-    if func is None:
-        return partial(load_combination, load_expr)
+        >>> C().combo(1, 2, 3, 4, 5)
+        array([5.5, 6. , 6.5])
+        """
 
-    if isinstance(load_expr, Factored):
-        load_combination_obj = Combination((GroupAnd((load_expr,)),))
-    elif isinstance(load_expr, GroupAnd):
-        load_combination_obj = Combination((load_expr,))
-    else:
-        load_combination_obj = load_expr
+        @wrapt.decorator
+        def combine_the_loads_wrapper(wrapped, instance, args, kwargs):
+            ...  # TODO
 
-    mat = load_combination_obj.matrix
-    sig = signature(func)
+        return combine_the_loads_wrapper(func)
 
-    @wrapt.decorator
-    def combine_the_loads_wrapper(wrapped, instance, args, kwargs):
-        is_a_method = ismethod(wrapped)
-        bound = sig.bind(instance, *args, **kwargs) if is_a_method else sig.bind(*args, **kwargs)
-        # mat is A, input is B. do A X B.T, and transpose result
-        return (mat @ np.array(list(bound.arguments.values())[is_a_method:]).T).T
-    return combine_the_loads_wrapper(func)
+    def __call__(self, *args, **kwargs):
+        return self._call_handler(*args, **kwargs)
 
 
 def _row_by_row_concatenation_of_array_seq(arr_seq):

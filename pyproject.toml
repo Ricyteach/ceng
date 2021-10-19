@@ -16,9 +16,10 @@ classifiers = [
 requires-python=">=3.9"
 dynamic = ["version", "description"]
 dependencies = [
-    "numpy >=1.21",
+    "numpy >=1.20",
     "scipy >=1.7",
     "wrapt >= 1.13",
+    "numba",
 ]
 
 [project.urls]
