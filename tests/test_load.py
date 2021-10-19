@@ -1,5 +1,4 @@
 from inspect import signature
-from ceng.common import flatten
 
 import numpy as np
 import numpy.testing as npt
