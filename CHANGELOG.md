@@ -13,6 +13,10 @@ and this project strives to adhere to
 
   * none
 
+#### Changed
+
+  * improved load combination API again (breaking change)
+
 ### [0.2] - 2021-10-05
 
 #### Changed
