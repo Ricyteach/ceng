@@ -129,6 +129,8 @@ class _GroupOr(_Group):
             other = _GroupAnd((other,))
         if isinstance(other, (_GroupOr, _GroupAnd)):
             return tuple((other, self))
+        if isinstance(other, tuple):
+            return tuple((*other, self))
         return NotImplemented
 
     def __rmul__(self, other):
@@ -161,9 +163,9 @@ class Combination:
     """A callable expression of the combination of multiple loads."""
 
     expr: str
+    matrix: npt.ArrayLike = dataclasses.field(init=False, repr=False, compare=False)
 
     _identifiers: list[str] = dataclasses.field(init=False, repr=False)
-    _matrix: npt.ArrayLike = dataclasses.field(init=False, repr=False, compare=False)
     _call_handler: Callable[..., npt.ArrayLike] = dataclasses.field(init=False, repr=False, compare=False)
 
     def __post_init__(self):
@@ -198,22 +200,46 @@ class Combination:
             raise LoadCombinationExpressionError(f"{self.expr!r} evaluated to type {type(expr_eval).__qualname__}")
 
         arr_seq = [group.matrix for group in group_tup]
-        object.__setattr__(self, "_matrix", _row_by_row_concatenation_of_array_seq(arr_seq))
+        object.__setattr__(self, "matrix", _row_by_row_concatenation_of_array_seq(arr_seq))
 
     def _init_call_handler(self):
 
         # TODO: create handler using AST
-        lambda_src_template = 'lambda ' f'{", ".join(self._identifiers)}' ': {}'
 
-        vectorized_row_funcs = tuple(
-            nb.vectorize(eval(
-                lambda_src_template.format(" + ".join(f"{f}*{i}" for f, i in zip(factors, self._identifiers)))
-            )) for factors in self._matrix)
+        comma_sep_identifiers = ", ".join(self._identifiers)
+        f_src_template = f"""
+@{{decorator}}
+def {{func_name}}({comma_sep_identifiers}):
+    {{func_body}}"""
 
-        # TODO: jit each of the row funcs so kwd args are supported
+        ns = dict(vectorize=nb.vectorize, njit=nb.njit)
+        row_funcs = list()
+
+        for factors in self.matrix:
+            # vectorize each of the row funcs to support broadcasting
+            vectorized_src_format_dict = dict(
+                decorator = "vectorize",
+                func_name = "vectorized",
+                func_body = "return " + " + ".join(f"{f}*{i}" for f, i in zip(factors, self._identifiers))
+            )
+            vectorized_src = f_src_template.format(**vectorized_src_format_dict)
+
+            # jit each of the row funcs to support kwd args
+            njited_src_format_dict = dict(
+                decorator = "njit",
+                func_name = "njited",
+                func_body = f"return vectorized({comma_sep_identifiers})"
+            )
+            njited_src = f_src_template.format(**njited_src_format_dict)
+
+            src = vectorized_src + "\n\n\n" + njited_src
+
+            ns_copy = ns.copy()
+            exec(src, ns_copy)
+            row_funcs.append(ns_copy["njited"])
 
         def _call_handler(*args, **kwargs):
-            return np.array([f(*args, **kwargs) for f in vectorized_row_funcs]).T
+            return np.array([f(*args, **kwargs) for f in row_funcs]).T
 
         # prime the function for the float type (this seems slightly faster than providing dtype info)
         _call_handler(*(1. for _ in range(len(self._identifiers))))
