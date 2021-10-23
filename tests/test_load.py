@@ -6,18 +6,18 @@ import pytest
 from ceng.load import Combination, _get_identifiers, LoadCombinationExpressionError
 
 good_combo_strs = [
-    # "(1.4 * D)",
-    # "(1.2 * D & 1.6 * L & 0.5 * (Lr | S | R))",
+    "(1.4 * D)",
+    "(1.2 * D & 1.6 * L & 0.5 * (Lr | S | R))",
     "(1.2 * D & 1.6 * (S | Lr | R) & (1.0 * L | 0.5 * W))",
-    # "(1.2 * D & W & L & 0.5 * (Lr | S | R))",
-    # "(0.9 * D & W)",
-    # "(D)",
-    # "(D & L)",
-    # "(D & (S | Lr | R))",
-    # "(D & 0.75 * L & 0.75 * (Lr | S | R))",
-    # "(D & 0.6 * W)",
-    # "(D & 0.75 * L & 0.75 * 0.6 * W & 0.75 * (Lr | S | R))",
-    # "(0.6 * D & 0.6 * W)",
+    "(1.2 * D & W & L & 0.5 * (Lr | S | R))",
+    "(0.9 * D & W)",
+    "(D)",
+    "(D & L)",
+    "(D & (S | Lr | R))",
+    "(D & 0.75 * L & 0.75 * (Lr | S | R))",
+    "(D & 0.6 * W)",
+    "(D & 0.75 * L & 0.75 * 0.6 * W & 0.75 * (Lr | S | R))",
+    "(0.6 * D & 0.6 * W)",
 ]
 
 ok_combo_strs = [
@@ -89,14 +89,14 @@ combo_max_func_expected = [
     {"D": 1, "L": 1, "Lr": 1, "S": 1, "R": 1, "W": 1},
     {"D": 1, "L": 2, "Lr": 3, "S": 4, "R": 5, "W": 6},
     {"D": -6, "L": -5, "Lr": -4, "S": -3, "R": -2, "W": -1},
-])
+], ids=["all ones", "1 to 6", "-6 to -1"])
 def load_combo_input(request):
     return request.param
 
 
 @pytest.fixture
 def load_combo_result_expected(load_combo_input, combo_list_idx):
-    return combo_max_func_expected[combo_list_idx](*load_combo_input.values())
+    return combo_max_func_expected[combo_list_idx](**load_combo_input)
 
 
 def test_combo_max_result(load_combo_input, load_combination_func, load_combo_result_expected):
