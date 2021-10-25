@@ -177,3 +177,20 @@ def test_get_identifiers():
             continue
         except StopIteration:
             break
+
+
+def test_shape_of_combination_result():
+    @Combination("D & 0.75*L & 0.75*0.6*W & 0.75*(Lr | S | R)").function
+    def wind_primary_load(self, D=0, L=0, W=0, Lr=0, S=0, R=0):
+        ...
+    D = np.array([1, 1])
+    L = 2
+    W = 3
+    Lr = 4
+    S = 5
+    R = 6
+    result = wind_primary_load(D, L, W, Lr, S, R)
+    expected = np.array([D + 0.75*L + 0.75*0.6*W + 0.75*Lr,
+                         D + 0.75*L + 0.75*0.6*W + 0.75*S,
+                         D + 0.75*L + 0.75*0.6*W + 0.75*R])
+    np.testing.assert_almost_equal(result, expected)

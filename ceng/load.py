@@ -238,8 +238,14 @@ def {{func_name}}({comma_sep_identifiers}):
             exec(src, ns_copy)
             row_funcs.append(ns_copy["njited"])
 
-        def _call_handler(*args, **kwargs):
-            return np.array([f(*args, **kwargs) for f in row_funcs]).T
+        if len(row_funcs)==1:
+            row_func = row_funcs[0]
+
+            def _call_handler(*args, **kwargs):
+                return np.array(row_func(*args, **kwargs))
+        else:
+            def _call_handler(*args, **kwargs):
+                return np.array([f(*args, **kwargs) for f in row_funcs])
 
         # prime the function for the float type (this seems slightly faster than providing dtype info)
         _call_handler(*(1. for _ in range(len(self._identifiers))))
