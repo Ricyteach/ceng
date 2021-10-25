@@ -13,6 +13,8 @@ and this project strives to adhere to
 
   * none
 
+### [0.3] - 2021-10-24
+
 #### Changed
 
   * improved load combination API again (breaking change)
@@ -23,7 +25,7 @@ and this project strives to adhere to
 
   * improved load combination API, added some documentation
 
- ### [0.1] - 2021-10-04
+### [0.1] - 2021-10-04
 
 #### Features
 
