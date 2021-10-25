@@ -246,6 +246,14 @@ def {{func_name}}({comma_sep_identifiers}):
 
         object.__setattr__(self, "_call_handler", _call_handler)
 
+    def _decorator(self, func, inner_dec=lambda f: f):
+
+        @wrapt.decorator
+        def combine_the_loads_wrapper(wrapped, instance, args, kwargs):
+            return self(*args, **kwargs)
+
+        return combine_the_loads_wrapper(inner_dec(func))
+
     def function(self, func):
         """Decorator to apply to a load combination function. Automatically implements load combination.
 
@@ -261,11 +269,7 @@ def {{func_name}}({comma_sep_identifiers}):
         array([5.5, 6. , 6.5])
         """
 
-        @wrapt.decorator
-        def combine_the_loads_wrapper(wrapped, instance, args, kwargs):
-            return self(*args, **kwargs)
-
-        return combine_the_loads_wrapper(func)
+        return self._decorator(func)
 
     def method(self, func):
         """Decorator to apply to a load combination method. Automatically implements load combination.
@@ -283,11 +287,43 @@ def {{func_name}}({comma_sep_identifiers}):
         array([5.5, 6. , 6.5])
         """
 
-        @wrapt.decorator
-        def combine_the_loads_wrapper(wrapped, instance, args, kwargs):
-            ...  # TODO
+        return self._decorator(func)
 
-        return combine_the_loads_wrapper(func)
+    def staticmethod(self, func):
+        """Decorator to apply to a load combination method. Automatically implements load combination.
+
+        Example:
+        >>> class C:
+        ...     @Combination("1.6*D & 1.2*L & 0.5*(S | Lr | W)").staticmethod
+        ...     def combo(D, L, S, Lr, W):
+        ...         pass
+        ...
+
+        Produces:
+
+        >>> C().combo(1, 2, 3, 4, 5)
+        array([5.5, 6. , 6.5])
+        """
+
+        return self._decorator(func, staticmethod)
+
+    def classmethod(self, func):
+        """Decorator to apply to a load combination method. Automatically implements load combination.
+
+        Example:
+        >>> class C:
+        ...     @Combination("1.6*D & 1.2*L & 0.5*(S | Lr | W)").classmethod
+        ...     def combo(cls, D, L, S, Lr, W):
+        ...         pass
+        ...
+
+        Produces:
+
+        >>> C().combo(1, 2, 3, 4, 5)
+        array([5.5, 6. , 6.5])
+        """
+
+        return self._decorator(func, classmethod)
 
     def __call__(self, *args, **kwargs):
         return self._call_handler(*args, **kwargs)

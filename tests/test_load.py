@@ -105,7 +105,51 @@ def test_combo_max_result(load_combo_input, load_combination_func, load_combo_re
     assert np.max(result) == load_combo_result_expected
 
 
-def test_load_combo_as_method():
+@pytest.fixture
+def cls_with_load_combo_method(request):
+    decorator = request.param
+
+    class C:
+        @decorator
+        def m(first_param, D, L):
+            ...
+
+    return C
+
+
+@pytest.mark.parametrize("cls_with_load_combo_method", [
+    Combination("1.4*D & 1.2*L").method,
+    Combination("1.4*D & 1.2*L").classmethod,
+    Combination("1.4*D & 1.2*L").staticmethod,
+], ids=["method", "classmethod", "staticmethod"], indirect=True)
+def test_load_combo_as_method_of_instance(cls_with_load_combo_method):
+    C = cls_with_load_combo_method
+    result = np.max(C().m(1, 1))
+    npt.assert_almost_equal(result, np.array(2.6))
+
+
+@pytest.mark.parametrize("cls_with_load_combo_method", [
+    Combination("1.4*D & 1.2*L").classmethod,
+    Combination("1.4*D & 1.2*L").staticmethod,
+], ids=["classmethod", "staticmethod"], indirect=True)
+def test_load_combo_as_method_of_cls(cls_with_load_combo_method):
+    C = cls_with_load_combo_method
+    result = np.max(C.m(1, 1))
+    npt.assert_almost_equal(result, np.array(2.6))
+
+
+def test_load_combo_as_classmethod():
+    class C:
+        @Combination("1.4*D & 1.2*L").classmethod
+        def m(self, D, L): ...
+
+    result = np.max(C().m(1, 1))
+
+    npt.assert_almost_equal(result, np.array(2.6))
+    npt.assert_almost_equal(result, np.array(2.6))
+
+
+def test_load_combo_as_staticmethod():
     class C:
         @Combination("1.4*D & 1.2*L").method
         def m(self, D, L): ...
