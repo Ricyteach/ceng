@@ -13,6 +13,12 @@ and this project strives to adhere to
 
   * none
 
+### [0.3.1] - 2021-10-25
+
+#### Changed
+
+  * corrected bug causing incorrect array shapes for load combinations
+
 ### [0.3] - 2021-10-24
 
 #### Changed
