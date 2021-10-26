@@ -11,7 +11,7 @@ and this project strives to adhere to
 
 #### Added
 
-  * none
+  * Better interpolation documentation (`INTERP.md`).
 
 ### [0.4] - 2021-10-26
 

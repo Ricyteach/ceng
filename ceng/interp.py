@@ -143,7 +143,10 @@ def interp_dict(x, y, z=None, axis=0, bounds_error=True, fill_value=None):
 
     One or more of x,y,z must be a mapping and any mappings must have identical sets of keys.
 
-    If z in omitted, interpolation is 1d. Otherwise it is twice 1d and exactly one of x, y, z must be 2d."""
+    If z in omitted, interpolation is 1d. Otherwise it is twice 1d and exactly one of x, y, z must be 2d.
+
+    See INTERP.md for long form example.
+    """
 
     # get common keys view first (checks for consistency)
     keys_view = _keys_view_for_all_args_if_arg_has_keys(x, y, z)

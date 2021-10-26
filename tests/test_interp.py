@@ -1,6 +1,28 @@
 import pytest
 import numpy as np
-from ceng.interp import interp1d_twice
+from ceng.interp import interp1d_twice, interp_dict
+
+
+def test_documentation_example():
+
+    rows = ("A", "B")
+    subrows = ("1", "2")
+    x = [1, 2]
+    y = [10, 20, 30]
+    z = {
+        # TABLE HEADINGS
+        #               _X=1_    |    _X=2_
+        #         Y=  10 20  30  | 10  20  30
+        # TABLE ROWS
+        ("A", "1"): [[ 1, 2,  3], [ 4,  5,  6]],
+        ("A", "2"): [[ 2, 4,  6], [ 8, 10, 12]],
+        ("B", "1"): [[ 3, 6,  9], [12, 15, 18]],
+        ("B", "2"): [[ 4, 8, 12], [16, 20, 24]],
+    }
+
+    xy_interp = interp_dict(x=x, y=y, z=z)
+    result = xy_interp[("B", "1")](1.5, 25)
+    np.testing.assert_almost_equal(result, 12.0)
 
 
 @pytest.mark.parametrize("x, y, z", [
