@@ -13,6 +13,12 @@ and this project strives to adhere to
 
   * none
 
+### [0.4] - 2021-10-26
+
+#### Added
+
+  * Implemented API for engineering interpolation (`ceng.interp`).
+
 ### [0.3.1] - 2021-10-25
 
 #### Changed
@@ -35,5 +41,5 @@ and this project strives to adhere to
 
 #### Features
 
- * Implemented API for load combinations.
+ * Implemented API for load combinations (`ceng.load`).
  

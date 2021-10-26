@@ -7,7 +7,7 @@ General CE
 - LRFD Checks
 - Load Combinations (COMPLETED)
 - Material Properties (steel, aluminum, concrete, plastic...)
-- Simple 1d curve and multi 1d curve interpolation from charts, tables
+- Simple 1d curve and multi 1d curve interpolation from charts, tables (COMPLETED)
 
 Mechanics
 - Statics
