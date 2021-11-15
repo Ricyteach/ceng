@@ -13,7 +13,7 @@ applications in mind (such as visual display of interpolation in charts and tabl
 from ceng.interp import interp_dict
 
 rows = ("A", "B")
-subrows = ("1", "2")
+sub_rows = ("1", "2")
 x = [1, 2]
 y = [10, 20, 30]
 z = {

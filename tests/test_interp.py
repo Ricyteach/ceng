@@ -6,7 +6,7 @@ from ceng.interp import interp1d_twice, interp_dict
 def test_documentation_example():
 
     rows = ("A", "B")
-    subrows = ("1", "2")
+    sub_rows = ("1", "2")
     x = [1, 2]
     y = [10, 20, 30]
     z = {

@@ -8,16 +8,22 @@ and this project strives to adhere to
 
 
 ### [unreleased]
+   * None
+
+
+### [0.5] - 2021-11-15
 
 #### Added
 
-  * Better interpolation documentation (`INTERP.md`).
+  * Better interpolation documentation (`INTERP.md`)
+  * Implemented API of a convenient dictionary for looking up functions that apply 
+across a range of keys (`ceng.lookup.IterableDict`)
 
 ### [0.4] - 2021-10-26
 
 #### Added
 
-  * Implemented API for engineering interpolation (`ceng.interp`).
+  * Implemented API for engineering interpolation (`ceng.interp`)
 
 ### [0.3.1] - 2021-10-25
 
@@ -41,5 +47,5 @@ and this project strives to adhere to
 
 #### Features
 
- * Implemented API for load combinations (`ceng.load`).
+ * Implemented API for load combinations (`ceng.load`)
  
