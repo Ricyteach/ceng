@@ -4,21 +4,23 @@ from collections.abc import Mapping
 class IterableDict(Mapping):
     """A dict that is constructed using iterables of keys rather than individual keys.
 
-    >>> IterableDict(((1,2,3), "spam"), ((4,5,6), "eggs"))
-    {(1,2,3): "spam", (4,5,6): "eggs"}
+    >>> i_dict = IterableDict((((1,2,3), "spam"), ((4,5,6), "eggs")))
+    >>> i_dict
+    IterableDict({(1, 2, 3): 'spam', (4, 5, 6): 'eggs'})
+    >>> i_dict[1]
+    'spam'
+    >>> i_dict[4]
+    'eggs'
     """
-    key_iterables: tuple
-    values_of_iterables: tuple
+    root: Mapping
     _dict: dict
-    _len: int
 
-    def __init__(self, *args):
-        self.key_iterables, self.values_of_iterables = zip(args)
-        self._dict = {k: v for keys, v in args for k in keys}
-        self._len = len(self._dict)
+    def __init__(self, args):
+        self.root = dict(args)
+        self._dict = {k: v for keys, v in self.root.items() for k in keys}
 
     def __len__(self):
-        return self._len
+        return len(self._dict)
 
     def __iter__(self):
         yield from self._dict.keys()
@@ -27,4 +29,4 @@ class IterableDict(Mapping):
         return self._dict.__getitem__(k)
 
     def __repr__(self):
-        ...  # TODO
+        return f"{self.__class__.__name__}({self.root.__repr__()})"
