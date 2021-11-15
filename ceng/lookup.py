@@ -2,7 +2,7 @@ from collections.abc import Mapping
 
 
 class IterableDict(Mapping):
-    """A dict that is constructed using iterables of keys rather than individual keys.
+    """An immutable mapping that is constructed using iterables of keys rather than individual keys.
 
     >>> i_dict = IterableDict((((1,2,3), "spam"), ((4,5,6), "eggs")))
     >>> i_dict
